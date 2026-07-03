@@ -1,8 +1,8 @@
 # Splat Gallery
 
-Galeri web statis untuk memajang project **3D Gaussian Splatting** — mirip [superspl.at](https://superspl.at/). Setiap project tampil sebagai kartu di galeri; klik kartu untuk membukanya di viewer 3D interaktif (putar, geser, zoom).
+Galeri web statis untuk memajang project **3D Gaussian**. Setiap project tampil sebagai kartu di galeri; klik kartu untuk membukanya di viewer 3D interaktif (putar, geser, zoom).
 
-Situs ini 100% statis dan self-contained (engine [PlayCanvas](https://playcanvas.com) sudah di-vendor di `vendor/playcanvas.mjs`), jadi bisa di-hosting gratis di GitHub Pages tanpa build step dan tanpa CDN eksternal.
+Situs ini 100% statis dan self-contained jadi bisa di-hosting gratis di GitHub Pages tanpa build step dan tanpa CDN eksternal.
 
 ![Demo Galaxy](scenes/demo-galaxy/thumbnail.jpg)
 
