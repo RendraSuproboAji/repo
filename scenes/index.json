@@ -1,0 +1,18 @@
+{
+  "title": "Splat Gallery",
+  "subtitle": "Koleksi 3D Gaussian Splat — dibuat dengan SuperSplat",
+  "scenes": [
+    {
+      "id": "demo-galaxy",
+      "title": "Demo Galaxy",
+      "author": "Generated demo",
+      "description": "Galaksi spiral berisi ±35.000 gaussian, dibuat prosedural oleh tools/generate_demo_splat.py sebagai contoh isi galeri.",
+      "src": "scenes/demo-galaxy/scene.ply",
+      "thumbnail": "scenes/demo-galaxy/thumbnail.jpg",
+      "camera": {
+        "position": [3.6, 2.4, 3.6],
+        "target": [0, 0, 0]
+      }
+    }
+  ]
+}
