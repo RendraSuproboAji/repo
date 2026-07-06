@@ -69,7 +69,41 @@ Catatan: `php artisan serve` tidak meneruskan `PATH` ke proses servernya — bil
 
 Scene demo (`demo-galaxy`) dibuat prosedural oleh `tools/generate_demo_splat.py`; hapus lewat halaman manage bila tidak diperlukan.
 
-## Deployment
+## Deployment dengan Docker (disarankan)
+
+Cara termudah — cukup Docker + Docker Compose di server:
+
+```bash
+docker compose up -d --build
+```
+
+Buka http://localhost:8080. Entrypoint container otomatis: membuat `APP_KEY` (dan menyimpannya di volume agar stabil antar restart), menjalankan migrasi, seed demo sekali, `storage:link`, dan meng-cache config/route/view. Image sudah berisi **Node.js + splat-transform**, jadi fitur konversi lokal langsung jalan.
+
+Yang perlu disesuaikan di `docker-compose.yml` saat deploy sungguhan:
+
+- `APP_URL` → URL publik situs (mis. `https://splat.contoh.com`), dan port mapping bila perlu.
+- Semua data persisten (database SQLite, file splat, thumbnail, APP_KEY) ada di volume `splat-storage` — backup cukup volume itu.
+- **MySQL**: aktifkan service `db` yang sudah disiapkan (komentar) di compose file lalu isi variabel `DB_*` — ekstensi `pdo_mysql`/`pdo_pgsql` sudah ter-install di image.
+- Untuk HTTPS, letakkan reverse proxy (Caddy/Traefik/nginx) di depan port 80 container.
+
+Opsi build tambahan (jarang diperlukan):
+
+- Di belakang proxy korporat dengan TLS interception: taruh file CA `.crt` di `docker/certs/` sebelum build.
+- Registry mirror: `docker build --build-arg BASE_REGISTRY=mirror.gcr.io/library/ .`
+
+### Image siap-pakai dari GHCR (CI otomatis)
+
+Setiap push ke `main` (dan tag `v*`), workflow `.github/workflows/docker.yml` menjalankan test lalu build & push image **multi-arch (amd64 + arm64)** ke GitHub Container Registry. Di server, tidak perlu build sama sekali — ganti bagian `build: .` di `docker-compose.yml` dengan:
+
+```yaml
+    image: ghcr.io/rendrasuproboaji/repo:latest
+```
+
+lalu `docker compose up -d` (tambahkan `docker compose pull` untuk update). Tag yang tersedia: `latest` (branch default), nama branch, `vX.Y.Z`/`vX.Y` (dari git tag), dan `sha-<commit>`.
+
+Catatan: package GHCR pertama kali terbit sebagai **private**. Supaya server bisa pull tanpa login, ubah visibilitas package ke public di GitHub → Packages → *repo* → Package settings; atau tetap private dan login dulu: `docker login ghcr.io -u <username>` dengan personal access token ber-scope `read:packages`.
+
+## Deployment tanpa Docker
 
 Butuh hosting PHP (shared hosting, VPS, Forge, dsb.) dengan document root diarahkan ke `public/`. Jangan lupa: `php artisan storage:link`, set `APP_URL`, `APP_ENV=production`, `APP_DEBUG=false`, dan naikkan `upload_max_filesize`/`post_max_size` di `php.ini`. GitHub Pages **tidak** bisa menjalankan Laravel — gunakan branch situs statis untuk itu.
 
