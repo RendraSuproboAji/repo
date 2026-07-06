@@ -107,7 +107,7 @@ def write_ply(path, splats):
 
 
 if __name__ == '__main__':
-    out = sys.argv[1] if len(sys.argv) > 1 else 'scenes/demo-galaxy/scene.ply'
+    out = sys.argv[1] if len(sys.argv) > 1 else 'database/seeders/assets/demo-galaxy/scene.ply'
     splats = make_splats()
     write_ply(out, splats)
     print(f'wrote {len(splats)} splats to {out}')
