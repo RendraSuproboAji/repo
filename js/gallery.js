@@ -26,6 +26,25 @@ const cardHtml = (scene) => {
         </a>`;
 };
 
+const render = (scenes, query, sort) => {
+    let list = [...scenes];
+
+    if (query) {
+        const q = query.toLowerCase();
+        list = list.filter(s => [s.title, s.author, s.description]
+            .some(v => v && v.toLowerCase().includes(q)));
+    }
+
+    // tanpa tanggal di index.json: "terbaru" = urutan daftar dibalik
+    // (entri baru ditambahkan di akhir file)
+    if (sort === 'newest') list.reverse();
+    if (sort === 'title') list.sort((a, b) => (a.title ?? a.id).localeCompare(b.title ?? b.id));
+
+    gallery.innerHTML = list.length ?
+        list.map(cardHtml).join('') :
+        `<div class="status">Tidak ada scene yang cocok.</div>`;
+};
+
 const main = async () => {
     let index;
     try {
@@ -45,9 +64,6 @@ const main = async () => {
             `${escapeHtml(parts.slice(0, -1).join(' '))} <span class="accent">${escapeHtml(parts.at(-1))}</span>` :
             escapeHtml(index.title);
     }
-    if (index.subtitle) {
-        document.getElementById('site-subtitle').textContent = index.subtitle;
-    }
 
     const scenes = index.scenes ?? [];
     if (scenes.length === 0) {
@@ -55,7 +71,12 @@ const main = async () => {
         return;
     }
 
-    gallery.innerHTML = scenes.map(cardHtml).join('');
+    const search = document.getElementById('search');
+    const sort = document.getElementById('sort');
+    const refresh = () => render(scenes, search.value.trim(), sort.value);
+    search.addEventListener('input', refresh);
+    sort.addEventListener('change', refresh);
+    refresh();
 };
 
 main();
