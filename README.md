@@ -1,84 +1,100 @@
-# Splat Gallery
+# Splat Gallery (Laravel)
 
-Galeri web statis untuk memajang project **3D Gaussian Splatting** — mirip [superspl.at](https://superspl.at/). Setiap project tampil sebagai kartu di galeri; klik kartu untuk membukanya di viewer 3D interaktif (putar, geser, zoom).
+Aplikasi galeri **3D Gaussian Splatting** ala [superspl.at](https://superspl.at/), dibangun dengan **Laravel 13 + SQLite**. Pengguna bisa mendaftar, mengunggah scene splat, mengelolanya di halaman *Your Splats*, dan semua scene publik tampil di galeri *Explore* dengan pencarian + urutan Trending/Terbaru. Viewer 3D interaktif (putar/geser/zoom) ditenagai engine [PlayCanvas](https://playcanvas.com) yang sudah di-vendor — tanpa build step Node/Vite.
 
-Situs ini 100% statis dan self-contained (engine [PlayCanvas](https://playcanvas.com) sudah di-vendor di `vendor/playcanvas.mjs`), jadi bisa di-hosting gratis di GitHub Pages tanpa build step dan tanpa CDN eksternal.
+> Versi **situs statis** (tanpa backend, bisa di-hosting di GitHub Pages) ada di branch `claude/supersplat-gallery-display-mebhfh`.
 
-![Demo Galaxy](scenes/demo-galaxy/thumbnail.jpg)
+## Fitur
 
-## Struktur
-
-```
-index.html            → halaman galeri (grid kartu project)
-viewer.html           → viewer 3D bawaan (orbit/pan/zoom)
-scenes/index.json     → daftar project yang tampil di galeri
-scenes/<id>/          → satu folder per project (file scene + thumbnail)
-vendor/playcanvas.mjs → engine PlayCanvas (renderer gaussian splat)
-tools/                → script pembuat scene demo
-```
+- **Explore** (`/`) — grid kartu scene publik dari database: thumbnail, judul, author, jumlah views; pencarian dan sort Trending (views) / Terbaru.
+- **Viewer** (`/s/{slug}`) — viewer 3D gaussian splat (`.ply`, `.compressed.ply`, `.sog`) dengan orbit/pan/zoom, auto-framing, fullscreen; views bertambah otomatis.
+- **Auth** — Sign Up / Login / Logout (session, tanpa starter kit).
+- **Your Splats** (`/manage`) — unggah scene (+ thumbnail, deskripsi, publik/privat, opsi balik 180°), edit, dan hapus.
+- **Convert** (`/convert`) — dua alternatif: konversi **di server** memakai CLI [splat-transform](https://github.com/playcanvas/splat-transform) (input `.ply/.compressed.ply/.sog/.spz/.ksplat/.splat`, output `.ply/.compressed.ply/.sog/.spz`, opsi decimate) **atau** link ke konverter resmi superspl.at. Konversi lokal bisa dihidup/matikan lewat `FEATURE_LOCAL_CONVERT`.
+- **Menu drawer** ala superspl.at — Explore, Editor, Convert, Your Splats, Send feedback, GitHub, Discord, Sign Up/Login/Logout (item menyesuaikan status login; tautan diatur di `config/site.php`).
 
 ## Menjalankan secara lokal
 
+Prasyarat: PHP ≥ 8.2 (ekstensi `pdo_sqlite`), Composer. Node.js hanya diperlukan untuk fitur konversi lokal.
+
 ```bash
-python3 -m http.server 8000
-# buka http://localhost:8000
+composer install
+cp .env.example .env
+php artisan key:generate
+touch database/database.sqlite
+php artisan migrate --seed        # membuat tabel + scene demo & user demo
+php artisan storage:link          # symlink public/storage
+php artisan serve
 ```
 
-(Harus lewat web server — membuka `index.html` langsung dari file tidak akan jalan karena `fetch`.)
+Buka http://localhost:8000. Akun demo: `demo@example.com` / `password`.
 
-## Menambahkan project baru
+Untuk unggahan besar, naikkan batas PHP saat dev:
 
-1. **Buat / edit scene** di [SuperSplat editor](https://superspl.at/editor) (atau hasil training 3DGS Anda).
-2. **Ekspor** dari SuperSplat sebagai **Compressed PLY** (`.compressed.ply`) atau **SOG** — jauh lebih kecil daripada PLY biasa. Bisa juga kompres lewat CLI [splat-transform](https://github.com/playcanvas/splat-transform):
-   ```bash
-   npx @playcanvas/splat-transform input.ply output.compressed.ply
-   ```
-3. **Salin** file scene ke folder baru, misal `scenes/rumah-saya/scene.compressed.ply`.
-4. **Daftarkan** di `scenes/index.json`:
-   ```json
-   {
-     "id": "rumah-saya",
-     "title": "Rumah Saya",
-     "author": "Rendra",
-     "description": "Scan rumah dengan 3D Gaussian Splatting.",
-     "src": "scenes/rumah-saya/scene.compressed.ply",
-     "thumbnail": "scenes/rumah-saya/thumbnail.jpg"
-   }
-   ```
-5. **Thumbnail** (opsional): screenshot scene, simpan sebagai `thumbnail.jpg` di folder scene. Tanpa thumbnail, kartu memakai placeholder huruf.
-6. Commit & push — selesai.
+```bash
+php -d upload_max_filesize=512M -d post_max_size=520M artisan serve
+```
 
-### Opsi per scene di `index.json`
+### Mengaktifkan konversi lokal
 
-| Field | Keterangan |
+```bash
+npm install -g @playcanvas/splat-transform
+```
+
+lalu di `.env`:
+
+```env
+FEATURE_LOCAL_CONVERT=true
+# default memakai npx; bisa juga path lengkap hasil `which splat-transform`
+SPLAT_TRANSFORM_COMMAND="npx --yes @playcanvas/splat-transform"
+```
+
+Catatan: `php artisan serve` tidak meneruskan `PATH` ke proses servernya — bila muncul error `env: 'node': No such file or directory`, isi `SPLAT_TRANSFORM_COMMAND` dengan path lengkap CLI-nya.
+
+## Konfigurasi
+
+| Variabel `.env` | Keterangan |
 |---|---|
-| `src` | Path/URL file `.ply`, `.compressed.ply`, atau `.sog` |
-| `camera.position` / `camera.target` | Posisi awal kamera `[x, y, z]`. Tanpa ini, kamera auto-frame dari bounding box |
-| `camera.fov` | Field of view (default 60) |
-| `rotation` | Rotasi scene `[x, y, z]` derajat — PLY hasil training 3DGS sering terbalik; coba `[180, 0, 0]` |
-| `position`, `scale` | Transform tambahan untuk scene |
-| `viewerUrl` | Alternatif: link langsung ke paket "HTML viewer" hasil ekspor SuperSplat (taruh di `scenes/<id>/`), melewati viewer bawaan |
+| `FEATURE_LOCAL_CONVERT` | `true/false` — form konversi lokal di halaman Convert |
+| `SPLAT_TRANSFORM_COMMAND` | Perintah CLI splat-transform |
+| `CONVERT_MAX_MB` / `UPLOAD_MAX_MB` | Batas ukuran file konversi / unggahan (MB) |
+| `SITE_LINK_EDITOR/GITHUB/FEEDBACK/DISCORD` | Tautan menu drawer (lihat `config/site.php`) |
+| `DB_CONNECTION` | Default `sqlite`; ganti ke `mysql`/`pgsql` beserta kredensialnya bila perlu |
 
-## Deploy ke GitHub Pages
+## Alur kerja konten
 
-1. Di repo GitHub: **Settings → Pages → Source: GitHub Actions**.
-2. Merge/push ke branch `main` — workflow `.github/workflows/deploy.yml` otomatis mem-publish situs.
-3. Situs tersedia di `https://<username>.github.io/<repo>/`.
+1. Buat/edit scene di [SuperSplat editor](https://superspl.at/editor), ekspor **Compressed PLY** atau **SOG** (jauh lebih kecil dari PLY biasa) — atau kompres lewat halaman **Convert**.
+2. Login → **Upload Splat** → isi judul/deskripsi/thumbnail → simpan.
+3. Scene publik langsung tampil di Explore; kelola kapan saja lewat **Your Splats**.
 
-> **Catatan ukuran file**: GitHub membatasi 100 MB per file. Gunakan Compressed PLY / SOG (biasanya 10–20× lebih kecil). Untuk scene sangat besar, hosting file scene-nya di tempat lain (misal Cloudflare R2 / Hugging Face) dan isi `src` dengan URL penuh.
+Scene demo (`demo-galaxy`) dibuat prosedural oleh `tools/generate_demo_splat.py`; hapus lewat halaman manage bila tidak diperlukan.
 
-## Scene demo
+## Deployment
 
-`scenes/demo-galaxy/` berisi galaksi spiral ±35.000 gaussian yang dibuat prosedural — hanya placeholder agar galeri tidak kosong. Regenerasi dengan:
+Butuh hosting PHP (shared hosting, VPS, Forge, dsb.) dengan document root diarahkan ke `public/`. Jangan lupa: `php artisan storage:link`, set `APP_URL`, `APP_ENV=production`, `APP_DEBUG=false`, dan naikkan `upload_max_filesize`/`post_max_size` di `php.ini`. GitHub Pages **tidak** bisa menjalankan Laravel — gunakan branch situs statis untuk itu.
 
-```bash
-python3 tools/generate_demo_splat.py
+## Struktur penting
+
+```
+app/Http/Controllers/   → Explore, SplatView, Auth, Manage, Convert
+app/Models/Splat.php    → model scene (slug, file, settings kamera, views)
+config/features.php     → feature flag konversi lokal
+config/site.php         → tautan menu drawer
+resources/views/        → Blade: layouts/app, explore, viewer, manage/*, auth/*, convert
+public/lib/playcanvas.mjs → engine PlayCanvas (vendored, lisensi MIT)
+public/js/viewer.js     → viewer 3D (konfigurasi via window.sceneConfig)
+database/seeders/       → user demo + scene demo-galaxy
 ```
 
-Hapus foldernya dan entri-nya di `scenes/index.json` kalau sudah punya scene sendiri.
+## Test
+
+```bash
+php artisan test
+```
 
 ## Kredit
 
 - [SuperSplat](https://github.com/playcanvas/supersplat) — editor 3D Gaussian Splat
 - [splat-transform](https://github.com/playcanvas/splat-transform) — CLI konversi/kompresi splat
-- [PlayCanvas Engine](https://github.com/playcanvas/engine) — renderer WebGL/WebGPU (lisensi MIT, lihat `vendor/PLAYCANVAS-LICENSE`)
+- [PlayCanvas Engine](https://github.com/playcanvas/engine) — renderer (lisensi MIT, lihat `public/lib/PLAYCANVAS-LICENSE`)
+- [Laravel](https://laravel.com)
